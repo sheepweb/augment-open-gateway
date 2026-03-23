@@ -5,9 +5,7 @@
 > [!WARNING]
 > The business logic of this project was completed with 90% AI + 10% human effort. The plugin integration and interface debugging were all completed by humans. It is for technical research purposes only. Feel free to fork / modify. For commercial use, please credit the original source. Please use this project with [AugmentCode patch project](https://github.com/linqiu919/augment-open-patch) for better results.
 
-> AugmentCode API proxy gateway built with Go and Vue.js
-
-Augment Gateway: A high-performance API proxy gateway for [AugmentCode](https://www.augmentcode.com/), providing TOKEN management, load balancing, user management, and real-time monitoring. Supports multi-user sharing, external channel forwarding, and OAuth 2.0 authorization.
+> A high-performance API proxy gateway for [AugmentCode](https://www.augmentcode.com/), providing TOKEN management, load balancing, user management, and real-time monitoring. Supports multi-user sharing, external channel forwarding, and OAuth 2.0 authorization.
 
 [![Go Version](https://img.shields.io/badge/Go-1.23.6+-blue.svg)](https://golang.org)
 [![Vue Version](https://img.shields.io/badge/Vue-3.4+-green.svg)](https://vuejs.org)

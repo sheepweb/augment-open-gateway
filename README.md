@@ -5,9 +5,7 @@
 > [!WARNING]
 > 本项目业务代码为 90% AI + 10% 人工开发完成，插件对接及接口调试均由人工完成，仅供技术研究参考。欢迎自行 Fork / 二次开发，商用请标明出处。本项目请搭配：[AugmentCode 补丁项目](https://github.com/linqiu919/augment-open-patch) 使用。
 
-> 基于 Go 和 Vue.js 的 AugmentCode API 代理网关系统
-
-Augment Gateway：一个高性能的 API 代理网关，为 [AugmentCode](https://www.augmentcode.com/) 提供 TOKEN 管理、负载均衡、用户管理和实时监控功能。支持多用户共享、外部渠道转发和 OAuth 2.0 授权接入。
+> [AugmentCode](https://www.augmentcode.com/) 高性能 API 代理网关，提供 TOKEN 管理、负载均衡、用户管理和实时监控，支持多用户共享、外部渠道转发和 OAuth 2.0 授权。
 
 [![Go Version](https://img.shields.io/badge/Go-1.23.6+-blue.svg)](https://golang.org)
 [![Vue Version](https://img.shields.io/badge/Vue-3.4+-green.svg)](https://vuejs.org)
