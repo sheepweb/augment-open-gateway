@@ -998,6 +998,11 @@ export const systemAPI = {
   // 获取系统版本号
   getVersion() {
     return api.get('/system/version')
+  },
+
+  // 获取前端公开配置
+  getFrontendConfig() {
+    return api.get('/system/frontend-config')
   }
 }
 

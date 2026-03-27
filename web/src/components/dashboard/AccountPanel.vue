@@ -396,7 +396,7 @@
         </div>
 
         <!-- 人机验证 -->
-        <div class="form-section">
+        <div v-if="turnstileEnabled" class="form-section">
           <div class="section-title">人机验证</div>
           <div class="turnstile-section">
             <div v-if="turnstileLoading" class="turnstile-loading">
@@ -429,7 +429,7 @@
 import { ref, watch, nextTick, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, DocumentCopy, Link, QuestionFilled, Loading, WarningFilled } from '@element-plus/icons-vue'
-import { userTokenAPI, externalChannelAPI } from '@/api'
+import { userTokenAPI, externalChannelAPI, systemAPI } from '@/api'
 
 const props = defineProps({
   tokenAllocations: { type: Array, default: () => [] },
@@ -462,6 +462,8 @@ const currentBanReason = ref('')
 const addTokenDrawerVisible = ref(false)
 const addTokenSubmitting = ref(false)
 const addTokenFormRef = ref(null)
+const turnstileEnabled = ref(true)
+const frontendConfigLoaded = ref(false)
 const turnstileToken = ref('')
 const turnstileWidgetId = ref(null)
 const turnstileLoading = ref(false)
@@ -824,11 +826,38 @@ const handleEnhanceSubmit = async () => {
 }
 
 // 添加TOKEN相关
-const openAddTokenDialog = () => {
+const loadFrontendConfig = async () => {
+  if (frontendConfigLoaded.value) {
+    return
+  }
+
+  const cachedConfig = window.__APP_FRONTEND_CONFIG__
+  if (cachedConfig && typeof cachedConfig.turnstile_enabled !== 'undefined') {
+    turnstileEnabled.value = cachedConfig.turnstile_enabled !== false
+    frontendConfigLoaded.value = true
+    return
+  }
+
+  try {
+    const config = await systemAPI.getFrontendConfig()
+    window.__APP_FRONTEND_CONFIG__ = config
+    turnstileEnabled.value = config?.turnstile_enabled !== false
+  } catch (error) {
+    console.error('加载前端公开配置失败，默认启用 Turnstile:', error)
+    turnstileEnabled.value = true
+  } finally {
+    frontendConfigLoaded.value = true
+  }
+}
+
+const openAddTokenDialog = async () => {
   addTokenDrawerVisible.value = true
-  nextTick(() => {
-    setTimeout(() => initTurnstile(), 100)
-  })
+  await loadFrontendConfig()
+  if (turnstileEnabled.value) {
+    nextTick(() => {
+      setTimeout(() => initTurnstile(), 100)
+    })
+  }
 }
 
 const resetAddTokenForm = () => {
@@ -841,6 +870,7 @@ const resetAddTokenForm = () => {
     account_type: '30000_credits'
   }
   turnstileToken.value = ''
+  turnstileLoading.value = false
   if (addTokenFormRef.value) {
     addTokenFormRef.value.clearValidate()
   }
@@ -852,15 +882,22 @@ const resetAddTokenForm = () => {
 
 const initTurnstile = () => {
   turnstileLoading.value = true
-  if (!window.turnstile) {
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-    script.async = true
-    script.defer = true
-    script.onload = () => setTimeout(() => renderTurnstile(), 100)
-    document.head.appendChild(script)
-  } else {
+  if (window.turnstile) {
     renderTurnstile()
+  } else {
+    let attempts = 0
+    const maxAttempts = 50
+    const checkInterval = setInterval(() => {
+      attempts++
+      if (window.turnstile) {
+        clearInterval(checkInterval)
+        renderTurnstile()
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval)
+        turnstileLoading.value = false
+        console.error('Turnstile 脚本加载超时')
+      }
+    }, 100)
   }
 }
 
@@ -918,7 +955,7 @@ const handleAddTokenSubmit = async () => {
     return
   }
 
-  if (!turnstileToken.value) {
+  if (turnstileEnabled.value && !turnstileToken.value) {
     ElMessage.error('请完成人机验证')
     return
   }
@@ -932,7 +969,7 @@ const handleAddTokenSubmit = async () => {
       portal_url: addTokenForm.value.portal_url.trim(),
       proxy_address: addTokenForm.value.proxy_address.trim(),
       account_type: addTokenForm.value.account_type,
-      turnstile_token: turnstileToken.value
+      ...(turnstileEnabled.value ? { turnstile_token: turnstileToken.value } : {})
     }
     await userTokenAPI.submitToken(submitData)
     ElMessage.success('TOKEN账号添加成功')

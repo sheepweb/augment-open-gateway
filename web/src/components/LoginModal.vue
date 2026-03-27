@@ -44,7 +44,7 @@
         </div>
 
         <!-- Turnstile 人机验证 -->
-        <div class="turnstile-section">
+        <div v-if="turnstileEnabled" class="turnstile-section">
           <div v-if="turnstileLoading" class="turnstile-loading">
             <el-icon class="loading-icon"><Loading /></el-icon>
             <span>人机验证加载中...</span>
@@ -55,7 +55,7 @@
         <el-button
           type="primary"
           :loading="loading"
-          :disabled="!turnstileToken"
+          :disabled="turnstileEnabled && !turnstileToken"
           @click="handleLogin"
           class="submit-btn"
         >
@@ -75,7 +75,7 @@ import { ref, reactive, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
-import { userAuthAPI } from '@/api'
+import { userAuthAPI, systemAPI } from '@/api'
 
 const props = defineProps({
   modelValue: Boolean
@@ -86,18 +86,47 @@ const emit = defineEmits(['update:modelValue', 'switch-to-register'])
 const router = useRouter()
 const loginFormRef = ref(null)
 const loading = ref(false)
+const turnstileEnabled = ref(true)
+const frontendConfigLoaded = ref(false)
 const turnstileToken = ref('')
 const turnstileWidgetId = ref(null)
 const turnstileLoading = ref(false)
 
 const visible = ref(props.modelValue)
 
-watch(() => props.modelValue, (val) => {
+const loadFrontendConfig = async () => {
+  if (frontendConfigLoaded.value) {
+    return
+  }
+
+  const cachedConfig = window.__APP_FRONTEND_CONFIG__
+  if (cachedConfig && typeof cachedConfig.turnstile_enabled !== 'undefined') {
+    turnstileEnabled.value = cachedConfig.turnstile_enabled !== false
+    frontendConfigLoaded.value = true
+    return
+  }
+
+  try {
+    const config = await systemAPI.getFrontendConfig()
+    window.__APP_FRONTEND_CONFIG__ = config
+    turnstileEnabled.value = config?.turnstile_enabled !== false
+  } catch (error) {
+    console.error('加载前端公开配置失败，默认启用 Turnstile:', error)
+    turnstileEnabled.value = true
+  } finally {
+    frontendConfigLoaded.value = true
+  }
+}
+
+watch(() => props.modelValue, async (val) => {
   visible.value = val
   if (val) {
-    nextTick(() => {
-      setTimeout(() => initTurnstile(), 100)
-    })
+    await loadFrontendConfig()
+    if (turnstileEnabled.value) {
+      nextTick(() => {
+        setTimeout(() => initTurnstile(), 100)
+      })
+    }
   }
 })
 
@@ -127,6 +156,7 @@ const handleClose = () => {
   loginFormRef.value?.resetFields()
   // 清理 Turnstile
   turnstileToken.value = ''
+  turnstileLoading.value = false
   if (window.turnstile && turnstileWidgetId.value) {
     window.turnstile.remove(turnstileWidgetId.value)
     turnstileWidgetId.value = null
@@ -201,20 +231,20 @@ const handleLogin = async () => {
   if (!loginFormRef.value) return
 
   // 检查人机验证
-  if (!turnstileToken.value) {
+  if (turnstileEnabled.value && !turnstileToken.value) {
     ElMessage.error('请完成人机验证')
     return
   }
 
   try {
     await loginFormRef.value.validate()
-    
+
     loading.value = true
     const result = await userAuthAPI.login({
       ...loginForm,
-      turnstile_token: turnstileToken.value
+      ...(turnstileEnabled.value ? { turnstile_token: turnstileToken.value } : {})
     })
-    
+
     if (result.token) {
       localStorage.setItem('user_token', result.token)
     }

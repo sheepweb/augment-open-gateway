@@ -7,8 +7,12 @@ WORKDIR /app/web
 # 复制前端依赖文件
 COPY web/package*.json ./
 
-# 清除npm缓存并安装前端依赖（包括开发依赖，构建需要）
-RUN npm cache clean --force && npm ci --no-cache
+# 配置 npm 网络参数并安装前端依赖（包括开发依赖，构建需要）
+RUN npm config set registry https://registry.npmmirror.com/ \
+    && npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000 \
+    && npm ci
 
 # 复制前端源代码
 COPY web/ .

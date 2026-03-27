@@ -111,7 +111,7 @@ func NewHandlers(services *service.Services, cfg *config.Config) *Handlers {
 		Plugin:             NewPluginHandler(services.Plugin),
 		SystemAnnouncement: NewSystemAnnouncementHandler(services.SystemAnnouncement),
 		SystemConfig:       NewSystemConfigHandler(services.SystemConfig),
-		System:             NewSystemHandler(),
+		System:             NewSystemHandler(cfg),
 		Monitor:            NewMonitorHandler(services.Monitor),
 		RemoteModel:        NewRemoteModelHandler(services.RemoteModel),
 	}

@@ -191,6 +191,7 @@ func setupRouter(cfg *config.Config, handlers *handler.Handlers) *gin.Engine {
 
 		// 系统信息公开接口（不需要登录）
 		api.GET("/system/version", handlers.System.GetVersion)
+		api.GET("/system/frontend-config", handlers.System.GetFrontendConfig)
 
 		// 用户功能路由（需要用户身份验证）
 		user := api.Group("/user")

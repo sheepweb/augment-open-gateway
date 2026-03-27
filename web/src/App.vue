@@ -18,18 +18,35 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import Layout from '@/components/Layout.vue'
+import { systemAPI } from '@/api'
 
 const locale = ref(zhCn)
 const route = useRoute()
 
-// 预加载 Cloudflare Turnstile 脚本
-onMounted(() => {
+const loadTurnstileScript = () => {
   if (!window.turnstile && !document.querySelector('script[src*="turnstile"]')) {
     const script = document.createElement('script')
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
     script.async = true
     script.defer = true
     document.head.appendChild(script)
+  }
+}
+
+// 仅在开启 Turnstile 时预加载脚本
+onMounted(async () => {
+  try {
+    const config = await systemAPI.getFrontendConfig()
+    window.__APP_FRONTEND_CONFIG__ = config
+    if (config?.turnstile_enabled !== false) {
+      loadTurnstileScript()
+    }
+  } catch (error) {
+    console.error('加载前端公开配置失败，默认启用 Turnstile:', error)
+    window.__APP_FRONTEND_CONFIG__ = {
+      turnstile_enabled: true
+    }
+    loadTurnstileScript()
   }
 })
 
