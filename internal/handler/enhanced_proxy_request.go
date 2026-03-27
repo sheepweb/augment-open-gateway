@@ -435,6 +435,8 @@ func (h *EnhancedProxyHandler) convertToClaudeRequest(ctx context.Context, plugi
 // disableThinking: 是否为底层模型请求（标题生成、对话总结），为 true 时启用小预算 thinking 模式并减小 MaxTokens，
 // 让思考模型在 thinking 块中推理而非嵌入文本输出，由调用方负责跳过 thinking 块的转发
 func (h *EnhancedProxyHandler) convertToClaudeRequestWithOptions(ctx context.Context, pluginReq *PluginChatRequest, targetModel string, userID uint, channel *database.ExternalChannel, disableThinking bool) (*ClaudeAPIRequest, error) {
+	pluginReq = h.preprocessPluginRequest(pluginReq)
+
 	claudeReq := &ClaudeAPIRequest{
 		Model:     targetModel,
 		MaxTokens: 32000,
@@ -1604,6 +1606,137 @@ func (h *EnhancedProxyHandler) buildSystemReminderBlocks(ctx context.Context, pl
 	return blocks
 }
 
+// preprocessPluginRequest 在转发前归一化 IDE 状态，避免多工作区噪音影响检索
+func (h *EnhancedProxyHandler) preprocessPluginRequest(pluginReq *PluginChatRequest) *PluginChatRequest {
+	if pluginReq == nil {
+		return nil
+	}
+
+	copied := *pluginReq
+	copied.Nodes = h.normalizeIDEStateToPrimaryWorkspace(pluginReq.Nodes)
+	return &copied
+}
+
+// getCurrentWorkingDirectory 获取当前终端工作目录
+func (h *EnhancedProxyHandler) getCurrentWorkingDirectory(nodes []PluginRequestNode) string {
+	for _, node := range nodes {
+		if node.Type == PluginNodeTypeIDEState && node.IDEStateNode != nil && node.IDEStateNode.CurrentTerminal != nil {
+			return strings.TrimSpace(node.IDEStateNode.CurrentTerminal.CurrentWorkingDirectory)
+		}
+	}
+	return ""
+}
+
+// getPrimaryWorkspace 基于 cwd 和 workspace 信息推断主工作区
+func (h *EnhancedProxyHandler) getPrimaryWorkspace(nodes []PluginRequestNode) *PluginWorkspaceFolder {
+	cwd := strings.ToLower(h.getCurrentWorkingDirectory(nodes))
+
+	for _, node := range nodes {
+		if node.Type != PluginNodeTypeIDEState || node.IDEStateNode == nil {
+			continue
+		}
+
+		folders := node.IDEStateNode.WorkspaceFolders
+		if len(folders) == 0 {
+			return nil
+		}
+		if len(folders) == 1 {
+			folder := folders[0]
+			return &folder
+		}
+
+		if cwd != "" {
+			for i := range folders {
+				folder := folders[i]
+				folderRoot := strings.ToLower(strings.TrimSpace(folder.FolderRoot))
+				repositoryRoot := strings.ToLower(strings.TrimSpace(folder.RepositoryRoot))
+
+				if folderRoot != "" && strings.HasPrefix(cwd, folderRoot) {
+					return &folder
+				}
+				if repositoryRoot != "" && strings.HasPrefix(cwd, repositoryRoot) {
+					return &folder
+				}
+			}
+		}
+
+		folder := folders[0]
+		return &folder
+	}
+
+	return nil
+}
+
+// normalizeIDEStateToPrimaryWorkspace 仅保留主工作区，减少 IDE 状态噪音
+func (h *EnhancedProxyHandler) normalizeIDEStateToPrimaryWorkspace(nodes []PluginRequestNode) []PluginRequestNode {
+	primary := h.getPrimaryWorkspace(nodes)
+	if primary == nil {
+		return nodes
+	}
+
+	normalized := make([]PluginRequestNode, len(nodes))
+	copy(normalized, nodes)
+
+	for i := range normalized {
+		node := normalized[i]
+		if node.Type != PluginNodeTypeIDEState || node.IDEStateNode == nil {
+			continue
+		}
+
+		ideStateCopy := *node.IDEStateNode
+		ideStateCopy.WorkspaceFolders = []PluginWorkspaceFolder{*primary}
+		node.IDEStateNode = &ideStateCopy
+		normalized[i] = node
+	}
+
+	return normalized
+}
+
+// enhanceToolInputForWorkspace 对 codebase-retrieval 做 query 增强，替代 workspace_folder 参数
+func (h *EnhancedProxyHandler) enhanceToolInputForWorkspace(toolName string, input map[string]any, nodes []PluginRequestNode) map[string]any {
+	if toolName != "codebase-retrieval" || input == nil {
+		return input
+	}
+
+	req, ok := input["information_request"].(string)
+	if !ok || strings.TrimSpace(req) == "" {
+		return input
+	}
+
+	primary := h.getPrimaryWorkspace(nodes)
+	cwd := h.getCurrentWorkingDirectory(nodes)
+
+	var hints []string
+	if primary != nil {
+		if folderRoot := strings.TrimSpace(primary.FolderRoot); folderRoot != "" {
+			hints = append(hints, fmt.Sprintf("当前活动工作区: %s", folderRoot))
+		}
+		if repositoryRoot := strings.TrimSpace(primary.RepositoryRoot); repositoryRoot != "" && repositoryRoot != strings.TrimSpace(primary.FolderRoot) {
+			hints = append(hints, fmt.Sprintf("仓库根目录: %s", repositoryRoot))
+		}
+	}
+	if strings.TrimSpace(cwd) != "" {
+		hints = append(hints, fmt.Sprintf("当前终端目录: %s", cwd))
+	}
+
+	if len(hints) == 0 {
+		return input
+	}
+
+	enhanced := make(map[string]any, len(input))
+	for k, v := range input {
+		enhanced[k] = v
+	}
+
+	enhanced["information_request"] = fmt.Sprintf(
+		"请优先在以下上下文范围内检索：\n%s\n\n检索目标：\n%s",
+		strings.Join(hints, "\n"),
+		strings.TrimSpace(req),
+	)
+
+	return enhanced
+}
+
 // extractIDEStateInfo 提取IDE状态信息
 func (h *EnhancedProxyHandler) extractIDEStateInfo(nodes []PluginRequestNode) string {
 	for _, node := range nodes {
@@ -1663,7 +1796,7 @@ func (h *EnhancedProxyHandler) convertMessages(ctx context.Context, pluginReq *P
 			messages = append(messages, ClaudeMessage{Role: "user", Content: userContent})
 		}
 
-		assistantContent := h.convertResponseNodesToContent(historyItem.ResponseNodes, historyItem.ResponseText)
+		assistantContent := h.convertResponseNodesToContent(historyItem.ResponseNodes, historyItem.ResponseText, historyItem.RequestNodes)
 		if len(assistantContent) > 0 {
 			messages = append(messages, ClaudeMessage{Role: "assistant", Content: assistantContent})
 			for _, node := range historyItem.ResponseNodes {
@@ -1858,7 +1991,7 @@ func (h *EnhancedProxyHandler) convertRequestNodesToContentWithFilterAndCache(no
 }
 
 // convertResponseNodesToContent 转换响应节点为内容块
-func (h *EnhancedProxyHandler) convertResponseNodesToContent(nodes []PluginResponseNode, responseText string) []ClaudeContentBlock {
+func (h *EnhancedProxyHandler) convertResponseNodesToContent(nodes []PluginResponseNode, responseText string, requestNodes []PluginRequestNode) []ClaudeContentBlock {
 	var content []ClaudeContentBlock
 
 	for _, node := range nodes {
@@ -1885,6 +2018,7 @@ func (h *EnhancedProxyHandler) convertResponseNodesToContent(nodes []PluginRespo
 						logger.Warnf("[增强代理] 工具JSON解析失败，使用空输入: %s", node.ToolUse.ToolName)
 					}
 				}
+				input = h.enhanceToolInputForWorkspace(node.ToolUse.ToolName, input, requestNodes)
 				content = append(content, ClaudeContentBlock{
 					Type:  "tool_use",
 					ID:    sanitizeToolUseID(node.ToolUse.ToolUseID),
