@@ -69,7 +69,7 @@ type UserRegisterRequest struct {
 type UserLoginRequest struct {
 	Username       string `json:"username" binding:"required"` // 可以是用户名或邮箱
 	Password       string `json:"password" binding:"required"`
-	TurnstileToken string `json:"turnstile_token" binding:"required"` // Turnstile人机验证令牌
+	TurnstileToken string `json:"turnstile_token"` // Turnstile人机验证令牌（启用时由服务校验）
 }
 
 // UserAuthResponse 用户认证响应
@@ -955,4 +955,3 @@ func (s *UserAuthService) GetUserPrefixEnabled(ctx context.Context, userID uint)
 	}
 	return settings.PrefixEnabled, nil
 }
-

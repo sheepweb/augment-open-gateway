@@ -30,7 +30,7 @@ type RegisterRequest struct {
 	Email          string `json:"email" binding:"required,email"`
 	Password       string `json:"password" binding:"required"`
 	InvitationCode string `json:"invitation_code" binding:"required"`
-	TurnstileToken string `json:"turnstile_token" binding:"required"` // Turnstile验证令牌
+	TurnstileToken string `json:"turnstile_token"` // Turnstile验证令牌（启用时由服务校验）
 }
 
 // Register 用户注册

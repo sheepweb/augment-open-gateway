@@ -328,13 +328,13 @@ func (h *TokenAllocationHandler) GetUserAvailableTokensForSwitch(c *gin.Context)
 
 // UserSubmitTokenRequest 用户提交TOKEN请求
 type UserSubmitTokenRequest struct {
-	AuthSession    string `json:"auth_session"`                       // AuthSession（可选，二选一）
-	Token          string `json:"token"`                              // TOKEN（可选，二选一）
-	TenantAddress  string `json:"tenant_address"`                     // 租户地址（可选，二选一）
-	PortalURL      string `json:"portal_url"`                         // Portal URL（订阅地址，可选）
-	ProxyAddress   string `json:"proxy_address"`                      // 代理地址（选填）
-	AccountType    string `json:"account_type"`                       // 账号类型：30000_credits, 24000_credits
-	TurnstileToken string `json:"turnstile_token" binding:"required"` // Turnstile验证令牌
+	AuthSession    string `json:"auth_session"`    // AuthSession（可选，二选一）
+	Token          string `json:"token"`           // TOKEN（可选，二选一）
+	TenantAddress  string `json:"tenant_address"`  // 租户地址（可选，二选一）
+	PortalURL      string `json:"portal_url"`      // Portal URL（订阅地址，可选）
+	ProxyAddress   string `json:"proxy_address"`   // 代理地址（选填）
+	AccountType    string `json:"account_type"`    // 账号类型：30000_credits, 24000_credits
+	TurnstileToken string `json:"turnstile_token"` // Turnstile验证令牌（启用时由服务校验）
 }
 
 // UserSubmitToken 用户提交自己的Augment TOKEN账号

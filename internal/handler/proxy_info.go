@@ -28,7 +28,7 @@ func NewProxyInfoHandler(proxyInfoSvc service.ProxyInfoService, userAuthSvc *ser
 // SubmitProxyRequest 提交代理请求结构
 type SubmitProxyRequest struct {
 	ProxyURLs      []string `json:"proxy_urls" binding:"required,min=1"`
-	TurnstileToken string   `json:"turnstile_token" binding:"required"`
+	TurnstileToken string   `json:"turnstile_token"`
 }
 
 // UpdateProxyStatusRequest 更新代理状态请求结构

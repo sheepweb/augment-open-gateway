@@ -82,8 +82,8 @@ type ProxyConfig struct {
 
 // TokenConfig Token配置
 type TokenConfig struct {
-	Length               int
-	Prefix               string
+	Length int
+	Prefix string
 }
 
 // LogConfig 日志配置
@@ -148,9 +148,9 @@ type SubscriptionInfoConfig struct {
 
 // TelegramConfig Telegram机器人配置
 type TelegramConfig struct {
-	BotToken               string   // Telegram机器人Token
-	ChatID                 string   // Telegram群组ID
-	Enabled                bool     // 是否启用Telegram机器人
+	BotToken string // Telegram机器人Token
+	ChatID   string // Telegram群组ID
+	Enabled  bool   // 是否启用Telegram机器人
 }
 
 // Load 从环境变量加载配置
@@ -169,7 +169,7 @@ func Load() (*Config, error) {
 				Host:            getEnvString("MYSQL_HOST", "localhost"),                     // MySQL服务器地址
 				Port:            getEnvInt("MYSQL_PORT", 3306),                               // MySQL服务器端口，默认3306
 				Username:        getEnvString("MYSQL_USERNAME", "root"),                      // MySQL用户名
-				Password:        getEnvString("MYSQL_PASSWORD", ""),                  // MySQL密码
+				Password:        getEnvString("MYSQL_PASSWORD", ""),                          // MySQL密码
 				Database:        getEnvString("MYSQL_DATABASE", "augment_gateway"),           // MySQL数据库名
 				MaxIdleConns:    getEnvInt("MYSQL_MAX_IDLE_CONNS", 10),                       // 最大空闲连接数
 				MaxOpenConns:    getEnvInt("MYSQL_MAX_OPEN_CONNS", 100),                      // 最大打开连接数
@@ -178,10 +178,10 @@ func Load() (*Config, error) {
 			},
 		},
 		Redis: RedisConfig{
-			Host:     getEnvString("REDIS_HOST", "localhost"),            // Redis服务器地址
-			Port:     getEnvInt("REDIS_PORT", 6379),                     // Redis服务器端口，默认6379
-			Password: getEnvString("REDIS_PASSWORD", ""),                // Redis密码，空字符串表示无密码
-			DB:       getEnvInt("REDIS_DB", 2),                          // Redis数据库索引，默认使用2号数据库
+			Host:     getEnvString("REDIS_HOST", "localhost"), // Redis服务器地址
+			Port:     getEnvInt("REDIS_PORT", 6379),           // Redis服务器端口，默认6379
+			Password: getEnvString("REDIS_PASSWORD", ""),      // Redis密码，空字符串表示无密码
+			DB:       getEnvInt("REDIS_DB", 2),                // Redis数据库索引，默认使用2号数据库
 		},
 		Proxy: ProxyConfig{
 			Timeout:                         getEnvDuration("PROXY_TIMEOUT", 1800*time.Second),                                    // 代理请求超时时间，默认30分钟，适应Agent类请求的长时间处理需求
@@ -200,8 +200,8 @@ func Load() (*Config, error) {
 			ScheduleTaskEnabled:             getEnvBool("SCHEDULE_TASK_ENABLED", true),                                            // 是否启用共享账号积分消耗定时任务，默认为true（开启）
 		},
 		Token: TokenConfig{
-			Length:               getEnvInt("TOKEN_LENGTH", 32),                                                     // Token长度，默认32字符
-			Prefix:               getEnvString("TOKEN_PREFIX", "agt_"),                                              // Token前缀，用于标识Token类型
+			Length: getEnvInt("TOKEN_LENGTH", 32),        // Token长度，默认32字符
+			Prefix: getEnvString("TOKEN_PREFIX", "agt_"), // Token前缀，用于标识Token类型
 		},
 		Log: LogConfig{
 			Enabled: getEnvBool("LOG_ENABLED", true),    // 默认启用日志（只打印到控制台，不写文件）
@@ -209,10 +209,10 @@ func Load() (*Config, error) {
 			Format:  getEnvString("LOG_FORMAT", "text"), // 日志格式：json/text，默认 text
 		},
 		Security: SecurityConfig{
-			JWTSecret:            getEnvString("JWT_SECRET", ""), // JWT签名密钥，生产环境必须修改
-			JWTExpiresIn:         getEnvDuration("JWT_EXPIRES_IN", 24*time.Hour),                                        // JWT访问令牌过期时间，默认24小时
-			JWTRefreshExpiresIn:  getEnvDuration("JWT_REFRESH_EXPIRES_IN", 7*24*time.Hour),                              // JWT刷新令牌过期时间，默认7天
-			BatchImportAuthToken: getEnvString("BATCH_IMPORT_AUTH_TOKEN", ""),                                // 批量导入TOKEN接口的鉴权令牌
+			JWTSecret:            getEnvString("JWT_SECRET", ""),                           // JWT签名密钥，生产环境必须修改
+			JWTExpiresIn:         getEnvDuration("JWT_EXPIRES_IN", 24*time.Hour),           // JWT访问令牌过期时间，默认24小时
+			JWTRefreshExpiresIn:  getEnvDuration("JWT_REFRESH_EXPIRES_IN", 7*24*time.Hour), // JWT刷新令牌过期时间，默认7天
+			BatchImportAuthToken: getEnvString("BATCH_IMPORT_AUTH_TOKEN", ""),              // 批量导入TOKEN接口的鉴权令牌
 			CORS: CORSConfig{
 				Enabled:          getEnvBool("CORS_ENABLED", true),                                                               // 是否启用CORS跨域支持
 				AllowedOrigins:   getEnvStringSlice("CORS_ALLOWED_ORIGINS", []string{"*"}),                                       // 允许的跨域来源，*表示允许所有
@@ -222,9 +222,9 @@ func Load() (*Config, error) {
 			},
 		},
 		Frontend: FrontendConfig{
-			StaticPath: getEnvString("FRONTEND_STATIC_PATH", "./web/dist"),         // 前端静态文件路径
-			APIPrefix:  getEnvString("FRONTEND_API_PREFIX", "/api/v1"),             // API路径前缀
-			URL:        getEnvString("FRONTEND_URL", ""), // 前端访问URL
+			StaticPath: getEnvString("FRONTEND_STATIC_PATH", "./web/dist"), // 前端静态文件路径
+			APIPrefix:  getEnvString("FRONTEND_API_PREFIX", "/api/v1"),     // API路径前缀
+			URL:        getEnvString("FRONTEND_URL", ""),                   // 前端访问URL
 		},
 		UserAuth: UserAuthConfig{
 			MinPasswordLength:  getEnvInt("USER_MIN_PASSWORD_LENGTH", 6),   // 最小密码长度，默认6位
@@ -233,7 +233,7 @@ func Load() (*Config, error) {
 		},
 		Turnstile: TurnstileConfig{
 			SecretKey: getEnvString("TURNSTILE_SECRET_KEY", ""), // Cloudflare Turnstile私钥
-			Enabled:   getEnvBool("TURNSTILE_ENABLED", true),                                       // 是否启用Turnstile验证
+			Enabled:   getEnvBool("TURNSTILE_ENABLED", false),   // 是否启用Turnstile验证，默认关闭
 		},
 		Subscription: SubscriptionConfig{
 			UserAgent: getEnvString("SUBSCRIPTION_USER_AGENT", ""), // 自定义User-Agent，用于订阅验证和代理转发
@@ -245,9 +245,9 @@ func Load() (*Config, error) {
 			EnableModification: getEnvBool("ENABLE_SUBSCRIPTION_MODIFICATION", true), // 是否启用/subscription-info接口数据修改，默认为true
 		},
 		Telegram: TelegramConfig{
-			BotToken:               getEnvString("TELEGRAM_BOT_TOKEN", ""), // Telegram机器人Token，必须配置
-			ChatID:                 getEnvString("TELEGRAM_CHAT_ID", ""),                                   // Telegram群组ID，必须配置
-			Enabled:                getEnvBool("TELEGRAM_ENABLED", true),                                                 // 是否启用Telegram机器人，默认关闭
+			BotToken: getEnvString("TELEGRAM_BOT_TOKEN", ""), // Telegram机器人Token，必须配置
+			ChatID:   getEnvString("TELEGRAM_CHAT_ID", ""),   // Telegram群组ID，必须配置
+			Enabled:  getEnvBool("TELEGRAM_ENABLED", true),   // 是否启用Telegram机器人，默认关闭
 		},
 	}
 

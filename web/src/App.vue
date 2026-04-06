@@ -42,11 +42,10 @@ onMounted(async () => {
       loadTurnstileScript()
     }
   } catch (error) {
-    console.error('加载前端公开配置失败，默认启用 Turnstile:', error)
+    console.error('加载前端公开配置失败，默认禁用 Turnstile:', error)
     window.__APP_FRONTEND_CONFIG__ = {
-      turnstile_enabled: true
+      turnstile_enabled: false
     }
-    loadTurnstileScript()
   }
 })
 

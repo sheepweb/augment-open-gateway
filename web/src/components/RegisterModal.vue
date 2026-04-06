@@ -124,7 +124,7 @@ const emit = defineEmits(['update:modelValue', 'switch-to-login'])
 const router = useRouter()
 const registerFormRef = ref(null)
 const loading = ref(false)
-const turnstileEnabled = ref(true)
+const turnstileEnabled = ref(false)
 const frontendConfigLoaded = ref(false)
 const turnstileToken = ref('')
 const turnstileWidgetId = ref(null)
@@ -149,8 +149,8 @@ const loadFrontendConfig = async () => {
     window.__APP_FRONTEND_CONFIG__ = config
     turnstileEnabled.value = config?.turnstile_enabled !== false
   } catch (error) {
-    console.error('加载前端公开配置失败，默认启用 Turnstile:', error)
-    turnstileEnabled.value = true
+    console.error('加载前端公开配置失败，默认禁用 Turnstile:', error)
+    turnstileEnabled.value = false
   } finally {
     frontendConfigLoaded.value = true
   }
