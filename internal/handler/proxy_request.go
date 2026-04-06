@@ -874,9 +874,60 @@ func (h *ProxyHandler) replaceInRecordSessionEvents(requestData map[string]inter
 // Dialog 清理方法
 // ============================================================================
 
-// clearDialogField 清空请求体中的 dialog 字段
+// popWorkspaceFolderHint 提取并移除不受支持的 workspace_folder 参数
+func popWorkspaceFolderHint(input map[string]any) (string, bool) {
+	if input == nil {
+		return "", false
+	}
+
+	workspaceField, exists := input["workspace_folder"]
+	if !exists {
+		return "", false
+	}
+
+	delete(input, "workspace_folder")
+	workspaceFolder := strings.TrimSpace(fmt.Sprint(workspaceField))
+	if workspaceFolder == "" {
+		return "", true
+	}
+
+	return fmt.Sprintf("显式指定工作区: %s", workspaceFolder), true
+}
+
+// rewriteRetrievalInformationRequest 将工作区提示改写到 information_request 中
+func rewriteRetrievalInformationRequest(input map[string]any, hints ...string) bool {
+	if input == nil {
+		return false
+	}
+
+	req, ok := input["information_request"].(string)
+	if !ok || strings.TrimSpace(req) == "" {
+		return false
+	}
+
+	filteredHints := make([]string, 0, len(hints))
+	for _, hint := range hints {
+		hint = strings.TrimSpace(hint)
+		if hint != "" {
+			filteredHints = append(filteredHints, hint)
+		}
+	}
+
+	if len(filteredHints) == 0 {
+		return false
+	}
+
+	input["information_request"] = fmt.Sprintf(
+		"请优先在以下上下文范围内检索：\n%s\n\n检索目标：\n%s",
+		strings.Join(filteredHints, "\n"),
+		strings.TrimSpace(req),
+	)
+	return true
+}
+
+// clearDialogField 清空请求体中的 dialog 字段，并兼容改写不受支持的检索参数
 // 用于 codebase-retrieval 和 commit-retrieval 等无状态检索请求
-// 避免对话历史中孤立的 tool_use 导致请求失败
+// 避免对话历史中孤立的 tool_use 导致请求失败，并将 workspace_folder 转换为 information_request 提示
 func (h *ProxyHandler) clearDialogField(body []byte) []byte {
 	if len(body) == 0 {
 		return body
@@ -884,27 +935,37 @@ func (h *ProxyHandler) clearDialogField(body []byte) []byte {
 
 	var requestData map[string]interface{}
 	if err := json.Unmarshal(body, &requestData); err != nil {
-		logger.Infof("[代理] 解析请求体失败，无法清空dialog字段: %v\n", err)
+		logger.Infof("[代理] 解析请求体失败，无法改写检索请求: %v\n", err)
 		return body
 	}
 
-	// 检查是否存在 dialog 字段
+	changed := false
 	if dialogField, exists := requestData["dialog"]; exists {
-		// 如果 dialog 不为空，则清空
 		if dialogArray, ok := dialogField.([]interface{}); ok && len(dialogArray) > 0 {
 			requestData["dialog"] = []interface{}{}
+			changed = true
 			logger.Infof("[代理] 已清空检索请求的 dialog 字段（原有 %d 条对话历史）", len(dialogArray))
-
-			modifiedBody, err := json.Marshal(requestData)
-			if err != nil {
-				logger.Infof("[代理] 序列化修改后的请求体失败: %v\n", err)
-				return body
-			}
-			return modifiedBody
 		}
 	}
 
-	return body
+	if workspaceHint, removed := popWorkspaceFolderHint(requestData); removed {
+		changed = true
+		if rewriteRetrievalInformationRequest(requestData, workspaceHint) {
+			logger.Infof("[代理] 已将检索请求中的 workspace_folder 改写为 information_request 提示: %s", workspaceHint)
+		}
+	}
+
+	if !changed {
+		return body
+	}
+
+	modifiedBody, err := json.Marshal(requestData)
+	if err != nil {
+		logger.Infof("[代理] 序列化修改后的检索请求失败: %v\n", err)
+		return body
+	}
+
+	return modifiedBody
 }
 
 // ============================================================================

@@ -571,7 +571,7 @@ func (h *ProxyHandler) ForwardWithUserToken(c *gin.Context) {
 		return
 	}
 
-	// 对于 codebase-retrieval 和 commit-retrieval 请求，清空 dialog 字段
+	// 对于 codebase-retrieval 和 commit-retrieval 请求，清空 dialog 字段，并兼容重写不受支持的参数
 	// 这些是无状态的代码检索请求，不需要对话历史，避免孤立的 tool_use 导致请求失败
 	if strings.Contains(fullPath, "/agents/codebase-retrieval") || strings.Contains(fullPath, "/agents/commit-retrieval") {
 		body = h.clearDialogField(body)

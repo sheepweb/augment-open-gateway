@@ -1698,15 +1698,18 @@ func (h *EnhancedProxyHandler) enhanceToolInputForWorkspace(toolName string, inp
 		return input
 	}
 
-	req, ok := input["information_request"].(string)
-	if !ok || strings.TrimSpace(req) == "" {
-		return input
+	enhanced := make(map[string]any, len(input))
+	for k, v := range input {
+		enhanced[k] = v
+	}
+
+	var hints []string
+	if workspaceHint, _ := popWorkspaceFolderHint(enhanced); workspaceHint != "" {
+		hints = append(hints, workspaceHint)
 	}
 
 	primary := h.getPrimaryWorkspace(nodes)
 	cwd := h.getCurrentWorkingDirectory(nodes)
-
-	var hints []string
 	if primary != nil {
 		if folderRoot := strings.TrimSpace(primary.FolderRoot); folderRoot != "" {
 			hints = append(hints, fmt.Sprintf("当前活动工作区: %s", folderRoot))
@@ -1719,21 +1722,7 @@ func (h *EnhancedProxyHandler) enhanceToolInputForWorkspace(toolName string, inp
 		hints = append(hints, fmt.Sprintf("当前终端目录: %s", cwd))
 	}
 
-	if len(hints) == 0 {
-		return input
-	}
-
-	enhanced := make(map[string]any, len(input))
-	for k, v := range input {
-		enhanced[k] = v
-	}
-
-	enhanced["information_request"] = fmt.Sprintf(
-		"请优先在以下上下文范围内检索：\n%s\n\n检索目标：\n%s",
-		strings.Join(hints, "\n"),
-		strings.TrimSpace(req),
-	)
-
+	rewriteRetrievalInformationRequest(enhanced, hints...)
 	return enhanced
 }
 
